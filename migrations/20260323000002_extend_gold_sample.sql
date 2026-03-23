@@ -1,0 +1,15 @@
+ALTER TABLE t_gold_sample ADD COLUMN source_last_price REAL;
+ALTER TABLE t_gold_sample ADD COLUMN field_1 REAL;
+ALTER TABLE t_gold_sample ADD COLUMN field_2 REAL;
+ALTER TABLE t_gold_sample ADD COLUMN high_price REAL;
+ALTER TABLE t_gold_sample ADD COLUMN low_price REAL;
+ALTER TABLE t_gold_sample ADD COLUMN prev_settlement REAL;
+ALTER TABLE t_gold_sample ADD COLUMN open_price REAL;
+ALTER TABLE t_gold_sample ADD COLUMN field_9 REAL;
+ALTER TABLE t_gold_sample ADD COLUMN field_10 REAL;
+ALTER TABLE t_gold_sample ADD COLUMN field_11 REAL;
+ALTER TABLE t_gold_sample ADD COLUMN quote_time TEXT;
+ALTER TABLE t_gold_sample ADD COLUMN quote_date TEXT;
+ALTER TABLE t_gold_sample ADD COLUMN display_name TEXT;
+ALTER TABLE t_gold_sample ADD COLUMN usd_cny_rate REAL;
+ALTER TABLE t_gold_sample ADD COLUMN cny_per_gram REAL;

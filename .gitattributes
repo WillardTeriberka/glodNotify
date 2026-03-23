@@ -1,0 +1,4 @@
+* text=auto
+*.rs text eol=crlf
+*.toml text eol=crlf
+.env.example text eol=crlf

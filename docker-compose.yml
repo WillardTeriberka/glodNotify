@@ -1,0 +1,10 @@
+services:
+  gold-notify:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_PATH: /data/gold.db
+    volumes:
+      - ./data:/data
