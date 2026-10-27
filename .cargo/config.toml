@@ -1,0 +1,8 @@
+# Windows 交叉编译配置：在 Linux 上构建 Windows 可执行文件
+# 使用方式见 build-windows.sh
+
+[target.x86_64-pc-windows-gnu]
+# 使用 mingw-w64 的链接器（需在 Linux 上安装 gcc-mingw-w64-x86-64）
+linker = "x86_64-w64-mingw32-gcc"
+# 静态链接 C 运行时，产物 exe 不依赖任何 DLL，可单独拷贝运行
+rustflags = ["-C", "target-feature=+crt-static"]

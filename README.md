@@ -23,6 +23,21 @@ cp .env.example .env
 cargo run --release
 ```
 
+## 交叉编译 Windows 可执行文件（无需在 Windows 装编译环境）
+
+在 Linux 上构建出可直接运行的 Windows `.exe`，Windows 侧零工具链、零依赖：
+
+```bash
+# 一次性准备（Debian/Ubuntu）
+rustup target add x86_64-pc-windows-gnu
+sudo apt install gcc-mingw-w64-x86-64
+
+# 构建（或直接执行 ./build-windows.sh）
+cargo build --release --target x86_64-pc-windows-gnu
+```
+
+产物位于 `target/x86_64-pc-windows-gnu/release/gold-notify.exe`（已通过 `.cargo/config.toml` 静态链接 C 运行时），拷贝到 Windows 后与 `data/`、`.env` 放同一目录即可运行。
+
 ## Docker / WSL
 
 在仓库根目录：

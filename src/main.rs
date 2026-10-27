@@ -1,3 +1,7 @@
+// Windows release 构建为 GUI 子系统：启动后无控制台窗口、不占任务栏。
+// 日志改写同目录 gold-notify.log（见 main 中 init_tracing）。
+#![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
+
 mod config;
 mod db;
 mod feishu;
@@ -129,13 +133,15 @@ async fn process_quotes(
                     .or_else(|| gold_api::extract_display_name(&q.raw_csv))
                     .unwrap_or_else(|| q.symbol.clone());
 
+                let original_price = format_original_price(&q.symbol, q.source_last_price);
+                let unified_suffix = format_unified_price_suffix(&q.symbol, q.last_price);
                 if new_low {
                     let msg = format!(
-                        "[黄金监控] {} ({}) 刷新当日新低：{:.2}（前低 {:.2}） 日期 {} 采样 {}",
+                        "[黄金监控] {} ({}) 刷新当日新低：{}{} 日期 {} 采样 {}",
                         name,
                         q.symbol,
-                        q.last_price,
-                        ext.day_low,
+                        original_price,
+                        unified_suffix,
                         trade_date,
                         format_ts(captured_at_ms)
                     );
@@ -143,11 +149,11 @@ async fn process_quotes(
                 }
                 if new_high {
                     let msg = format!(
-                        "[黄金监控] {} ({}) 刷新当日新高：{:.2}（前高 {:.2}） 日期 {} 采样 {}",
+                        "[黄金监控] {} ({}) 刷新当日新高：{}{} 日期 {} 采样 {}",
                         name,
                         q.symbol,
-                        q.last_price,
-                        ext.day_high,
+                        original_price,
+                        unified_suffix,
                         trade_date,
                         format_ts(captured_at_ms)
                     );
@@ -169,6 +175,26 @@ fn format_ts(ms: i64) -> String {
             .format("%Y-%m-%d %H:%M:%S")
             .to_string(),
         _ => ms.to_string(),
+    }
+}
+
+fn is_usd_oz_symbol(symbol: &str) -> bool {
+    matches!(symbol, "hf_GC" | "hf_XAU")
+}
+
+fn format_original_price(symbol: &str, source_last_price: f64) -> String {
+    if is_usd_oz_symbol(symbol) {
+        format!("{:.2} 美元/盎司", source_last_price)
+    } else {
+        format!("{:.2} 元/克", source_last_price)
+    }
+}
+
+fn format_unified_price_suffix(symbol: &str, unified_price: f64) -> String {
+    if is_usd_oz_symbol(symbol) {
+        format!("（统一价 {:.2} 元/克）", unified_price)
+    } else {
+        String::new()
     }
 }
 
@@ -211,14 +237,40 @@ async fn poll_gold_once(
     Ok(())
 }
 
+fn default_env_filter() -> tracing_subscriber::EnvFilter {
+    tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("gold_notify=info,sqlx=warn"))
+}
+
+/// Windows release（GUI 子系统）下日志写入同目录 gold-notify.log。
+#[cfg(all(target_os = "windows", not(debug_assertions)))]
+fn init_tracing() -> anyhow::Result<()> {
+    let log_path = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("gold-notify.log")))
+        .unwrap_or_else(|| std::path::PathBuf::from("gold-notify.log"));
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .with_context(|| format!("open log file {}", log_path.display()))?;
+    tracing_subscriber::fmt()
+        .with_env_filter(default_env_filter())
+        .with_writer(std::sync::Mutex::new(file))
+        .init();
+    Ok(())
+}
+
+/// 其他环境（Linux / Windows debug）保持 stdout 输出。
+#[cfg(not(all(target_os = "windows", not(debug_assertions))))]
+fn init_tracing() -> anyhow::Result<()> {
+    tracing_subscriber::fmt().with_env_filter(default_env_filter()).init();
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("gold_notify=info,sqlx=warn")),
-        )
-        .init();
+    init_tracing()?;
 
     let cfg = config::Config::from_env().context("load config")?;
     let pool = db::connect_and_migrate(&cfg.database_path)

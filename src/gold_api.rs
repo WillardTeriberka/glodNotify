@@ -101,41 +101,77 @@ pub fn parse_gold_js_body(body: &str, usd_cny_rate: f64) -> anyhow::Result<Vec<P
             .unwrap_or(full_var)
             .to_string();
         let raw_csv = inner.to_string();
-        let parts: Vec<&str> = raw_csv.split(',').map(|x| x.trim()).collect();
-        let Some(source_last_price) = parse_f64(&parts, 0) else {
-            tracing::warn!(%full_var, "skip quote: no numeric current price in csv[0]");
-            continue;
-        };
-        let cny_per_gram = if USD_OZ_SYMBOLS.contains(&symbol.as_str()) {
-            Some(usd_oz_to_cny_gram(source_last_price, usd_cny_rate))
-        } else {
-            None
-        };
-        let last_price = cny_per_gram.unwrap_or(source_last_price);
-        let display_name = parse_non_empty(&parts, 13).or_else(|| extract_display_name(&raw_csv));
-        let quote_date = parse_non_empty(&parts, 12);
-        let quote_time = parse_non_empty(&parts, 6);
-
-            out.push(ParsedQuote {
-                symbol,
-                raw_csv,
+        let (
+            source_last_price,
+            last_price,
+            field_1,
+            field_2,
+            high_price,
+            low_price,
+            prev_settlement,
+            open_price,
+            field_9,
+            field_10,
+            field_11,
+            quote_time,
+            quote_date,
+            display_name,
+            cny_per_gram,
+        ) = {
+            let parts: Vec<&str> = raw_csv.split(',').map(|x| x.trim()).collect();
+            let Some(source_last_price) = parse_f64(&parts, 0) else {
+                tracing::warn!(%full_var, "skip quote: no numeric current price in csv[0]");
+                continue;
+            };
+            let cny_per_gram = if USD_OZ_SYMBOLS.contains(&symbol.as_str()) {
+                Some(usd_oz_to_cny_gram(source_last_price, usd_cny_rate))
+            } else {
+                None
+            };
+            let last_price = cny_per_gram.unwrap_or(source_last_price);
+            let display_name =
+                parse_non_empty(&parts, 13).or_else(|| extract_display_name(inner));
+            let quote_date = parse_non_empty(&parts, 12);
+            let quote_time = parse_non_empty(&parts, 6);
+            (
                 source_last_price,
                 last_price,
-                field_1: parse_f64(&parts, 1),
-                field_2: parse_f64(&parts, 2),
-                high_price: parse_f64(&parts, 3).or_else(|| parse_f64(&parts, 4)),
-                low_price: parse_f64(&parts, 5),
-                prev_settlement: parse_f64(&parts, 7),
-                open_price: parse_f64(&parts, 8),
-                field_9: parse_f64(&parts, 9),
-                field_10: parse_f64(&parts, 10),
-                field_11: parse_f64(&parts, 11),
+                parse_f64(&parts, 1),
+                parse_f64(&parts, 2),
+                parse_f64(&parts, 3).or_else(|| parse_f64(&parts, 4)),
+                parse_f64(&parts, 5),
+                parse_f64(&parts, 7),
+                parse_f64(&parts, 8),
+                parse_f64(&parts, 9),
+                parse_f64(&parts, 10),
+                parse_f64(&parts, 11),
                 quote_time,
                 quote_date,
                 display_name,
-                usd_cny_rate: cny_per_gram.map(|_| usd_cny_rate),
                 cny_per_gram,
-            });
+            )
+        };
+
+        out.push(ParsedQuote {
+            symbol,
+            raw_csv,
+            source_last_price,
+            last_price,
+            field_1,
+            field_2,
+            high_price,
+            low_price,
+            prev_settlement,
+            open_price,
+            field_9,
+            field_10,
+            field_11,
+            quote_time,
+            quote_date,
+            display_name,
+            usd_cny_rate: cny_per_gram.map(|_| usd_cny_rate),
+            cny_per_gram,
+        });
     }
 
     Ok(out)

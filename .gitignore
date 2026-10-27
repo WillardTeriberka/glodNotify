@@ -5,3 +5,5 @@
 *.db-journal
 *.db-wal
 *.db-shm
+gold-notify.exe
+gold-notify.log
